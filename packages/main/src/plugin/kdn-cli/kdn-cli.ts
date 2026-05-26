@@ -16,6 +16,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ***********************************************************************/
 
+import { homedir } from 'node:os';
+
 import type { RunError, RunOptions } from '@openkaiden/api';
 import { inject, injectable } from 'inversify';
 
@@ -99,7 +101,8 @@ export class KdnCli {
   async createWorkspace(options: AgentWorkspaceCreateOptions): Promise<AgentWorkspaceId> {
     const cliPath = this.getCliPath();
     const runtime = options.runtime ?? 'podman';
-    const args = ['init', options.sourcePath, '--runtime', runtime, '--agent', options.agent, '--output', 'json'];
+    const sourcePath = options.sourcePath.startsWith('~/') ? homedir() + options.sourcePath.slice(1) : options.sourcePath === '~' ? homedir() : options.sourcePath;
+    const args = ['init', sourcePath, '--runtime', runtime, '--agent', options.agent, '--output', 'json'];
     if (options.name) {
       args.push('--name', options.name);
     }

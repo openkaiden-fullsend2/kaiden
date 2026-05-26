@@ -16,8 +16,12 @@
  * SPDX-License-Identifier: Apache-2.0
  ***********************************************************************/
 
+import { homedir } from 'node:os';
+
 import type { RunError, RunResult } from '@openkaiden/api';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+
+vi.mock(import('node:os'));
 
 import type { CliToolRegistry } from '/@/plugin/cli-tool-registry.js';
 import type { Proxy } from '/@/plugin/proxy.js';
@@ -225,6 +229,35 @@ describe('create', () => {
     await expect(kdnCli.createWorkspace(defaultOptions)).rejects.toThrow(
       'failed to create runtime instance: exit status 125',
     );
+  });
+
+  test('expands tilde prefix in sourcePath to home directory', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    vi.mocked(homedir).mockReturnValue('/home/testuser');
+    vi.mocked(exec.exec).mockResolvedValue(mockExecResult(JSON.stringify({ id: 'ws-new' })));
+
+    await kdnCli.createWorkspace({ ...defaultOptions, sourcePath: '~/my-project' });
+
+    expect(exec.exec).toHaveBeenCalledWith(KAIDEN_CLI_PATH, expect.arrayContaining(['/home/testuser/my-project']));
+  });
+
+  test('expands standalone tilde to home directory', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    vi.mocked(homedir).mockReturnValue('/home/testuser');
+    vi.mocked(exec.exec).mockResolvedValue(mockExecResult(JSON.stringify({ id: 'ws-new' })));
+
+    await kdnCli.createWorkspace({ ...defaultOptions, sourcePath: '~' });
+
+    expect(exec.exec).toHaveBeenCalledWith(KAIDEN_CLI_PATH, expect.arrayContaining(['/home/testuser']));
+  });
+
+  test('does not modify absolute paths', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    vi.mocked(exec.exec).mockResolvedValue(mockExecResult(JSON.stringify({ id: 'ws-new' })));
+
+    await kdnCli.createWorkspace({ ...defaultOptions, sourcePath: '/tmp/my-project' });
+
+    expect(exec.exec).toHaveBeenCalledWith(KAIDEN_CLI_PATH, expect.arrayContaining(['/tmp/my-project']));
   });
 });
 
